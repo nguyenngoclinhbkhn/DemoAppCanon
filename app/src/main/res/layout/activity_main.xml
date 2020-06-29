@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:orientation="vertical"
+    android:layout_height="match_parent"
+    tools:context=".MainActivity">
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:id="@+id/relative"
+        android:layout_below="@id/save"
+        android:layout_above="@+id/linearBottom"
+        android:layout_height="match_parent">
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:id="@+id/frameRoot"
+            android:layout_height="match_parent">
+        </FrameLayout>
+    </RelativeLayout>
+
+   <LinearLayout
+       android:layout_height="wrap_content"
+       android:layout_width="match_parent"
+       android:id="@+id/linearBottom"
+       android:layout_gravity="bottom"
+       android:layout_alignParentBottom="true"
+       android:orientation="horizontal">
+
+       <Button
+           android:layout_width="0dp"
+           android:id="@+id/btnAddText"
+           android:layout_height="match_parent"
+           android:layout_weight="1"
+           android:text="Add text" />
+
+       <Button
+           android:layout_width="0dp"
+           android:id="@+id/btnDrawKind1"
+           android:text="kind1"
+           android:textAllCaps="false"
+           android:layout_height="match_parent"
+           android:layout_weight="1" />
+
+       <Button
+           android:layout_width="0dp"
+           android:id="@+id/btnDrawKind4"
+           android:text="kind4"
+           android:textAllCaps="false"
+           android:layout_height="match_parent"
+           android:layout_weight="1" />
+
+       <Button
+           android:layout_width="0dp"
+           android:id="@+id/btnDrawKind5"
+           android:text="kind5"
+           android:textAllCaps="false"
+           android:layout_height="match_parent"
+           android:layout_weight="1" />
+       <Button
+           android:layout_width="0dp"
+           android:id="@+id/sticker"
+           android:text="sticker"
+           android:textAllCaps="false"
+           android:layout_height="match_parent"
+           android:layout_weight="1" />
+   </LinearLayout>
+
+    <Button
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentRight="true"
+        android:layout_margin="10dp"
+        android:id="@+id/save"
+        android:text="save"></Button>
+
+</RelativeLayout>

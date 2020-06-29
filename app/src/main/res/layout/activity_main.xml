@@ -63,11 +63,13 @@
            android:textAllCaps="false"
            android:layout_height="match_parent"
            android:layout_weight="1" />
+
        <androidx.recyclerview.widget.RecyclerView
            android:layout_width="0dp"
            android:id="@+id/recyclerDraw"
            android:layout_height="match_parent"
            android:layout_weight="2" />
+
        <androidx.recyclerview.widget.RecyclerView
            android:layout_width="0dp"
            android:id="@+id/recyclerSticker"
@@ -81,6 +83,6 @@
         android:layout_alignParentRight="true"
         android:layout_margin="10dp"
         android:id="@+id/save"
-        android:text="save"></Button>
+        android:text="save"/>
 
 </RelativeLayout>

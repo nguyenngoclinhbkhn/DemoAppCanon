@@ -29,8 +29,8 @@ class StickerTextView : StickerView {
     }
 
     fun setFontAndColor(context: Context?, font: Typeface?, color: Int) {
-        tv_main?.setTypeface(font)
-        tv_main?.setTextColor(color)
+        tv_main?.typeface = font
+        context?.resources?.getColor(color)?.let { tv_main?.setTextColor(it) }
     }
 
     //        tv_main.setTypeface(typeFace);
@@ -63,18 +63,17 @@ class StickerTextView : StickerView {
     }
 
     fun setText(text: String) {
-        if (tv_main != null) tv_main!!.setText("$text   ")
+        if (tv_main != null) tv_main!!.text = "$text   "
     }
 
     val text: String?
-        get() = if (tv_main != null) tv_main!!.getText().toString() else null
-
+        get() = if (tv_main != null) tv_main!!.text.toString() else null
 
 
     companion object {
         fun pixelsToSp(context: Context, px: Float): Float {
             val scaledDensity: Float =
-                context.getResources().getDisplayMetrics().scaledDensity
+                context.resources.displayMetrics.scaledDensity
             return px / scaledDensity
         }
     }

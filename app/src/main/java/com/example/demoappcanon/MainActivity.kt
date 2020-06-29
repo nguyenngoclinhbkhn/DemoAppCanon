@@ -3,6 +3,8 @@ package com.example.demoappcanon
 import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
 import android.animation.ObjectAnimator
+import android.app.Activity
+import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Point
@@ -10,8 +12,10 @@ import android.os.Bundle
 import android.util.Log
 import android.view.Gravity
 import android.view.View
+import android.view.ViewGroup
 import android.view.animation.AccelerateDecelerateInterpolator
 import android.view.animation.DecelerateInterpolator
+import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.ImageView
 import androidx.appcompat.app.AppCompatActivity
@@ -33,6 +37,11 @@ class MainActivity : AppCompatActivity(), View.OnClickListener, DrawView.OnDrawV
     private lateinit var bitmapResize: Bitmap
     private lateinit var bitmapOrigin: Bitmap
     private lateinit var adapterButton: AdapterButtonDraw
+    private val REQUEST_CODE = 105
+    private var stickerText: StickerTextView? = null
+    private var stickerFake: StickerImageView? = null
+    private var width: Int = 0
+    private var height: Int = 0
     private lateinit var adapterStickerOnImage: AdapterStickerOnImage
     private lateinit var listSticker: ArrayList<StickerModel>
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -48,9 +57,9 @@ class MainActivity : AppCompatActivity(), View.OnClickListener, DrawView.OnDrawV
 //        imgPreview = ImageView(this)
         drawView.setOnDrawViewListener(this)
         stickerFake = StickerImageView(this)
-        stickerFake.setStickerListener(this)
+        stickerFake?.setStickerListener(this)
         frameRoot.addView(stickerFake)
-        stickerFake.visibility = View.GONE
+        stickerFake?.visibility = View.GONE
 
         val display = windowManager.defaultDisplay
         val size = Point()
@@ -85,7 +94,18 @@ class MainActivity : AppCompatActivity(), View.OnClickListener, DrawView.OnDrawV
 //                FrameLayout.LayoutParams.MATCH_PARENT)
         }
 
+        val btnAddText = findViewById<Button>(R.id.btnAddText).setOnClickListener {
+            startActivityForResult(Intent(this, AddTextActivity::class.java), REQUEST_CODE)
+        }
 
+        stickerText = StickerTextView(this)
+        stickerText?.setStickerListener(this)
+
+        if (drawView.parent != null) {
+            (drawView.parent as ViewGroup).removeView(drawView)
+        }
+        frameRoot.addView(drawView, FrameLayout.LayoutParams.MATCH_PARENT,
+        FrameLayout.LayoutParams.MATCH_PARENT)
 
 
 
@@ -108,7 +128,7 @@ class MainActivity : AppCompatActivity(), View.OnClickListener, DrawView.OnDrawV
 
                 val stickerText = StickerTextView(this)
                 stickerText.setStickerListener(this)
-                stickerText.setText("Xin chaoasdflaksjdfklasdfjlaskdfjlaskfjdalskfdjsalkfjlaskfdjaslkfjaslkfasjf")
+                stickerText.setText("Xin chao")
                 frameRoot.addView(stickerText)
             }
 
@@ -118,9 +138,27 @@ class MainActivity : AppCompatActivity(), View.OnClickListener, DrawView.OnDrawV
         }
     }
 
-    private lateinit var stickerFake: StickerImageView
-    private var width = 0
-    private var height = 0
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+
+        when (requestCode) {
+            REQUEST_CODE -> {
+                if (resultCode == Activity.RESULT_OK) {
+                    val keyAddText = data?.getStringExtra("KEY_ADD_TEXT")
+                    val keyColorText = data?.getIntExtra("KEY_COLOR_TEXT", -1)
+                    Log.e("KEY_ADD_TEXT", keyAddText)
+                    Log.e("KEY_COLOR_TEXT", keyColorText.toString())
+                    keyAddText?.let { stickerText?.setText(it) }
+                    keyColorText?.let { stickerText?.setFontAndColor(this, null, it) }
+                    if (stickerText?.parent != null) {
+                        (stickerText?.parent as ViewGroup).removeView(stickerText)
+                    }
+                    frameRoot.addView(stickerText)
+                }
+            }
+        }
+    }
+
     override fun onDrawViewTouchUp() {
         //convert draw to bitmap when touch up
         val stickerImageView = StickerImageView(this)
@@ -140,16 +178,16 @@ class MainActivity : AppCompatActivity(), View.OnClickListener, DrawView.OnDrawV
         height = drawView.getPairSizeBitmapNeedToCut().second
 
         Log.e("TAG" , "width height first $width $height")
-        if (stickerFake.parent == frameRoot) {
+        if (stickerFake?.parent == frameRoot) {
             frameRoot.removeView(stickerFake)
             frameRoot.addView(
                 stickerFake,
                 drawView.getPairSizeBitmapNeedToCut().first,
                 drawView.getPairSizeBitmapNeedToCut().second
             )
-            stickerFake.x = drawView.getPairPositionToPutBitmapInFrame().first.toFloat()
-            stickerFake.y = drawView.getPairPositionToPutBitmapInFrame().second.toFloat()
-            stickerFake.visibility = View.VISIBLE
+            stickerFake?.x = drawView.getPairPositionToPutBitmapInFrame().first.toFloat()
+            stickerFake?.y = drawView.getPairPositionToPutBitmapInFrame().second.toFloat()
+            stickerFake?.visibility = View.VISIBLE
         }
         drawView.isEnabled = false
         drawView.visibility = View.GONE
@@ -197,12 +235,12 @@ class MainActivity : AppCompatActivity(), View.OnClickListener, DrawView.OnDrawV
     }
 
     override fun onStickerActionUp() {
-        width = stickerFocus?.width!!
-        height = stickerFocus?.height!!
+        stickerFocus?.width?.let { width = it }
+        stickerFocus?.height?.let { height = it }
     }
 
     override fun onButtonDrawClicked(button: String) {
-        when (button) {
+        when(button){
             "Draw1" -> {
 
             }
@@ -219,13 +257,5 @@ class MainActivity : AppCompatActivity(), View.OnClickListener, DrawView.OnDrawV
 
             }
         }
-        drawView.isEnabled = true
-        drawView.visibility = View.VISIBLE
-    }
-
-    private fun refreshList(list: ArrayList<StickerModel>){
-//        list.forEach {
-//            if (it.isFake ==)
-//        }
     }
 }

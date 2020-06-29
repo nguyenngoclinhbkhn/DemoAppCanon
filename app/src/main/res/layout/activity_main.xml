@@ -20,7 +20,7 @@
     </RelativeLayout>
 
    <LinearLayout
-       android:layout_height="wrap_content"
+       android:layout_height="50dp"
        android:layout_width="match_parent"
        android:id="@+id/linearBottom"
        android:layout_gravity="bottom"
@@ -32,38 +32,28 @@
            android:id="@+id/btnAddText"
            android:layout_height="match_parent"
            android:layout_weight="1"
+           android:textAllCaps="false"
+           android:textSize="8sp"
            android:text="Add text" />
 
        <Button
            android:layout_width="0dp"
-           android:id="@+id/btnDrawKind1"
-           android:text="kind1"
-           android:textAllCaps="false"
-           android:layout_height="match_parent"
-           android:layout_weight="1" />
-
-       <Button
-           android:layout_width="0dp"
-           android:id="@+id/btnDrawKind4"
-           android:text="kind4"
-           android:textAllCaps="false"
-           android:layout_height="match_parent"
-           android:layout_weight="1" />
-
-       <Button
-           android:layout_width="0dp"
-           android:id="@+id/btnDrawKind5"
-           android:text="kind5"
-           android:textAllCaps="false"
-           android:layout_height="match_parent"
-           android:layout_weight="1" />
-       <Button
-           android:layout_width="0dp"
            android:id="@+id/sticker"
            android:text="sticker"
+           android:textSize="8sp"
            android:textAllCaps="false"
            android:layout_height="match_parent"
            android:layout_weight="1" />
+       <androidx.recyclerview.widget.RecyclerView
+           android:layout_width="0dp"
+           android:id="@+id/recyclerDraw"
+           android:layout_height="match_parent"
+           android:layout_weight="2" />
+       <androidx.recyclerview.widget.RecyclerView
+           android:layout_width="0dp"
+           android:id="@+id/recyclerSticker"
+           android:layout_height="match_parent"
+           android:layout_weight="2" />
    </LinearLayout>
 
     <Button

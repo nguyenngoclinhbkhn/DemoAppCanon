@@ -1,5 +1,6 @@
 package com.example.demoappcanon.custom
 
+import android.R.attr.path
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.res.Resources
@@ -90,33 +91,18 @@ class DrawView : View {
         paint?.strokeWidth = 38F
 
 
-        paint4 = Paint(Paint.ANTI_ALIAS_FLAG)
-        paint4.color = Color.WHITE
-        paint4.strokeJoin = Paint.Join.ROUND // set the join to round you want
-        paint4.strokeCap = Paint.Cap.ROUND // set the paint cap to round too
-        paint4.style = Paint.Style.STROKE
-        paint4.isDither = true
-        paint4.strokeWidth = 32F
 
-
-        paint5 = Paint(Paint.ANTI_ALIAS_FLAG)
-        paint5.color = Color.RED
-        paint5.strokeJoin = Paint.Join.ROUND // set the join to round you want
-        paint5.strokeCap = Paint.Cap.ROUND // set the paint cap to round too
-        paint5.style = Paint.Style.STROKE
-        paint5.isDither = true
-        paint5.strokeWidth = 28F
-
-        paintRedShadow = Paint(Paint.ANTI_ALIAS_FLAG)
-        paintRedShadow.color = Color.RED
-        paintRedShadow.strokeJoin = Paint.Join.ROUND // set the join to round you want
-        paintRedShadow.strokeCap = Paint.Cap.ROUND // set the paint cap to round too
-        paintRedShadow.style = Paint.Style.STROKE
-        paintRedShadow.isDither = true
-        paintRedShadow.strokeWidth = 22F
 
         this.setOnTouchListener(touchListener)
     }
+
+    fun resetDrawView(){
+        mCanvas?.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR)
+//        bitmap = Bitmap.createBitmap(width.toInt(), height.toInt(), Bitmap.Config.ARGB_8888)
+//        invalidate()
+    }
+
+
 
 
     override fun onDraw(canvas: Canvas) {
@@ -166,6 +152,8 @@ class DrawView : View {
                 }
                 MotionEvent.ACTION_UP -> {
                     touch_up()
+                    onDrawViewListener.onDrawViewTouchUp()
+                    resetDrawView()
                     invalidate()
                 }
             }
@@ -191,6 +179,7 @@ class DrawView : View {
         mCanvas?.drawPath(mPath!!, paint5)
         mCanvas?.drawPath(mPath!!, paintRedShadow)
         pairSizeBitmapNeedToCut = findWidthHeightBitmapNeedToCut(pointListAfterDraw)
+        pointListAfterDraw.clear()
         mPath?.reset()
     }
 
@@ -233,6 +222,30 @@ class DrawView : View {
     }
 
     fun setKind5(){
+        paint4 = Paint(Paint.ANTI_ALIAS_FLAG)
+        paint4.color = Color.WHITE
+        paint4.strokeJoin = Paint.Join.ROUND // set the join to round you want
+        paint4.strokeCap = Paint.Cap.ROUND // set the paint cap to round too
+        paint4.style = Paint.Style.STROKE
+        paint4.isDither = true
+        paint4.strokeWidth = 32F
+
+
+        paint5 = Paint(Paint.ANTI_ALIAS_FLAG)
+        paint5.color = Color.RED
+        paint5.strokeJoin = Paint.Join.ROUND // set the join to round you want
+        paint5.strokeCap = Paint.Cap.ROUND // set the paint cap to round too
+        paint5.style = Paint.Style.STROKE
+        paint5.isDither = true
+        paint5.strokeWidth = 28F
+
+        paintRedShadow = Paint(Paint.ANTI_ALIAS_FLAG)
+        paintRedShadow.color = Color.RED
+        paintRedShadow.strokeJoin = Paint.Join.ROUND // set the join to round you want
+        paintRedShadow.strokeCap = Paint.Cap.ROUND // set the paint cap to round too
+        paintRedShadow.style = Paint.Style.STROKE
+        paintRedShadow.isDither = true
+        paintRedShadow.strokeWidth = 22F
         paintRedShadow.setShadowLayer(3F, 3F, 3F, Color.WHITE)
     }
 

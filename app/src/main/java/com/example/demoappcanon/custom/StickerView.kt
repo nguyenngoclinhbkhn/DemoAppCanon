@@ -1,27 +1,34 @@
 package com.example.demoappcanon.custom
 
+import android.animation.Animator
+import android.animation.AnimatorListenerAdapter
+import android.animation.ObjectAnimator
 import android.annotation.SuppressLint
+import android.content.Context
+import android.content.res.Resources
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.Rect
+import android.util.AttributeSet
+import android.util.DisplayMetrics
+import android.util.Log
+import android.view.Gravity
+import android.view.MotionEvent
+import android.view.View
 import android.view.View.OnClickListener
 import android.view.View.OnTouchListener
-import android.content.Context;
-import android.content.res.Resources;
-import android.graphics.Canvas;
-import android.graphics.Color;
-import android.graphics.Paint;
-import android.graphics.Rect;
-import android.util.AttributeSet;
-import android.util.DisplayMetrics;
-import android.util.Log;
-import android.view.Gravity;
-import android.view.MotionEvent;
-import android.view.View;
-import android.view.ViewGroup;
-import android.view.animation.Animation
-import android.view.animation.AnimationUtils
-import android.widget.FrameLayout;
-import android.widget.ImageView;
-import android.widget.Toast;
+import android.view.ViewGroup
+import android.view.animation.AccelerateDecelerateInterpolator
+import android.view.animation.DecelerateInterpolator
+import android.widget.FrameLayout
+import android.widget.ImageView
+import android.widget.Toast
 import com.example.demoappcanon.R
+import kotlin.math.abs
+import kotlin.math.atan2
+import kotlin.math.roundToInt
+import kotlin.math.sqrt
 
 
 abstract class StickerView : FrameLayout {
@@ -42,6 +49,13 @@ abstract class StickerView : FrameLayout {
     private var scale_orgWidth = -1.0
     private var scale_orgHeight = -1.0
 
+    private val NONE = 0
+    private val DRAG = 1
+    private val ZOOM = 2
+    private var mode = NONE
+    private var oldDist = 1f
+
+
     // For rotating
     private var rotate_orgX = -1f
     private var rotate_orgY = -1f
@@ -58,6 +72,9 @@ abstract class StickerView : FrameLayout {
 
     interface OnStickerListener {
         fun onStickerChoose(sticker: StickerView)
+        fun onScaleSticker(sticker: StickerView)
+        fun onStickerFlipClicked()
+        fun onStickerActionUp()
     }
 
     constructor(context: Context) : super(context) {
@@ -73,10 +90,10 @@ abstract class StickerView : FrameLayout {
         attrs,
         defStyle
     ) {
-        init(context )
+        init(context)
     }
 
-    fun setStickerListener(stickerListener: OnStickerListener){
+    fun setStickerListener(stickerListener: OnStickerListener) {
         this.stickerListener = stickerListener
     }
 
@@ -153,24 +170,12 @@ abstract class StickerView : FrameLayout {
             )
         )
         iv_flip_params.gravity = Gravity.BOTTOM or Gravity.LEFT
-        val imageViewDone_params = LayoutParams(
-            convertDpToPixel(
-                BUTTON_SIZE_DP.toFloat(),
-                getContext()
-            ),
-            convertDpToPixel(
-                BUTTON_SIZE_DP.toFloat(),
-                getContext()
-            )
-        )
-        imageViewDone_params.gravity = Gravity.TOP or Gravity.LEFT
         this.layoutParams = this_params
         this.addView(mainView, iv_main_params)
         this.addView(imageViewBorder, iv_border_params)
         this.addView(imageViewScale, iv_scale_params)
         this.addView(imageViewDelete, iv_delete_params)
         this.addView(imageViewFlip, iv_flip_params)
-        this.addView(imageViewDone, imageViewDone_params)
         setOnTouchListener(mTouchListener)
         imageViewScale.setOnTouchListener(mTouchListener)
         imageViewDelete.setOnClickListener(OnClickListener {
@@ -181,19 +186,11 @@ abstract class StickerView : FrameLayout {
         })
         imageViewFlip.setOnClickListener(OnClickListener {
             Log.v(TAG, "flip the view")
-            val mainView: View = mainView as View
-            mainView.startAnimation(AnimationUtils.loadAnimation(context, R.anim.flip))
-            mainView.rotationY = if (mainView.rotationY == -180f) 0f else -180f
-            mainView.invalidate()
-            requestLayout()
+            stickerListener.onStickerFlipClicked()
         })
         imageViewDone.setOnClickListener(OnClickListener { //                setEdit(true);
             Toast.makeText(getContext(), "set true ok", Toast.LENGTH_SHORT).show()
         })
-    }
-
-    interface Sendata {
-        fun sendData(stickerView: StickerView?)
     }
 
 
@@ -201,49 +198,79 @@ abstract class StickerView : FrameLayout {
         get() = mainView?.rotationY === -180f
 
     protected abstract val mainView: View?
+    private var widthOld = 0
+    private var heightOld = 0
+
     @SuppressLint("ClickableViewAccessibility")
     private val mTouchListener = OnTouchListener { view, event ->
-        if (view.tag.equals("DraggableViewGroup")) {
-            when (event.action) {
+        if (view.tag == "DraggableViewGroup") {
+            when (event.action and MotionEvent.ACTION_MASK) {
                 MotionEvent.ACTION_DOWN -> {
                     Log.v(TAG, "sticker view action down")
                     move_orgX = event.rawX
                     move_orgY = event.rawY
                     stickerListener.onStickerChoose(this)
+                    mode = DRAG;
+                }
+                MotionEvent.ACTION_POINTER_DOWN -> {
+                    oldDist = spacing(event)
+                    if (oldDist > 10F) {
+                        mode = ZOOM
+                        widthOld = this.layoutParams.width
+                        heightOld = this.layoutParams.height
+                    }
                 }
                 MotionEvent.ACTION_MOVE -> {
-                    val offsetX = event.rawX - move_orgX
-                    val offsetY = event.rawY - move_orgY
-                    val coordinateX1 = this@StickerView.x + offsetX
-                    val coordinateY1 = this@StickerView.y + offsetY
-                    val coordinateX: Float =
-                        (this@StickerView.x + offsetX).toFloat()
-                    val coordinateY: Float =
-                        (this@StickerView.y + offsetY).toFloat()
-                    val coordinateXLeft = (this@StickerView.left + offsetX).toInt()
-                    val coordinateYTop = (this@StickerView.top + offsetY).toInt()
-
-//                        StickerView.this.setLeft(coordinateXLeft);
-//                        StickerView.this.setTop(coordinateYTop);
-                    this@StickerView.x = coordinateX
-                    this@StickerView.y = coordinateY
-                    //                        StickerView.this.setLeft((int) (StickerView.this.getX() + offsetX));
-//                        StickerView.this.setTop((int) (StickerView.this.getY() + offsetY));
-                    move_orgX = event.rawX
-                    move_orgY = event.rawY
-                    Log.e("TAG", "x da lam tron $coordinateX")
-                    Log.e("TAG", "y da lam tron $coordinateY")
-                    Log.e("TAG", "x chua lam tron $coordinateX1")
-                    Log.e("TAG", "y chua lam tron $coordinateY1")
-                    stickerListener.onStickerChoose(this)
-                    invalidate()
+                    if (mode == DRAG) {
+                        val offsetX = event.rawX - move_orgX
+                        val offsetY = event.rawY - move_orgY
+                        val coordinateX1 = this@StickerView.x + offsetX
+                        val coordinateY1 = this@StickerView.y + offsetY
+                        val coordinateX: Float =
+                            (this@StickerView.x + offsetX).toFloat()
+                        val coordinateY: Float =
+                            (this@StickerView.y + offsetY).toFloat()
+                        val coordinateXLeft = (this@StickerView.left + offsetX).toInt()
+                        val coordinateYTop = (this@StickerView.top + offsetY).toInt()
+                        this@StickerView.x = coordinateX
+                        this@StickerView.y = coordinateY
+                        move_orgX = event.rawX
+                        move_orgY = event.rawY
+                        Log.e("TAG", "x da lam tron $coordinateX")
+                        Log.e("TAG", "y da lam tron $coordinateY")
+                        Log.e("TAG", "x chua lam tron $coordinateX1")
+                        Log.e("TAG", "y chua lam tron $coordinateY1")
+                        stickerListener.onStickerChoose(this)
+                        invalidate()
+                    } else if (mode == ZOOM) {
+                        if (event.pointerCount == 2) {
+                            val newDist = spacing(event)
+                            if (newDist > 10f) {
+                                val scale: Float = newDist / oldDist * view.scaleX
+                                if (scale > 0.6) {
+//                                    view.scaleX = scale
+//                                    view.scaleY = scale
+                                    val middleXView = this.x + widthOld / 2
+                                    val middleYView = this.y + heightOld / 2
+                                    val widthNew = (widthOld.toFloat() * scale).toInt()
+                                    val heightNew = (heightOld.toFloat() * scale).toInt()
+                                    val middleXNew = this.x + widthNew / 2
+                                    val middleYNew = this.y + heightNew / 2
+                                    val org_x = middleXNew - middleXView
+                                    val org_y = middleYNew - middleYView
+                                    this.x = this.x - org_x
+                                    this.y = this.y - org_y
+                                    this.layoutParams.width = widthNew
+                                    this.layoutParams.height = heightNew
+                                    this.requestLayout()
+                                    stickerListener.onScaleSticker(this)
+                                }
+                            }
+                        }
+                    }
                 }
                 MotionEvent.ACTION_UP ->
-//                        Intent intent = new Intent();
-//                        intent.putExtra("msg", "DATA ARRIVE");
-//                        intent.setAction(EditPhotoActivity.CHOOSE);
-//                        getContext().sendBroadcast(intent);
-                    Log.v(TAG, "sticker view action up")
+                    stickerListener.onStickerActionUp()
             }
         } else if (view.tag.equals("iv_scale")) {
             when (event.action) {
@@ -259,9 +286,6 @@ abstract class StickerView : FrameLayout {
                     rotate_orgY = event.rawY
                     centerX = this@StickerView.x +
                             (this@StickerView.parent as View).getX() + this@StickerView.width.toDouble() / 2
-
-
-                    //double statusBarHeight = Math.ceil(25 * getContext().getResources().getDisplayMetrics().density);
                     var result = 0
                     val resourceId =
                         resources.getIdentifier("status_bar_height", "dimen", "android")
@@ -278,72 +302,56 @@ abstract class StickerView : FrameLayout {
                     Log.v(TAG, "iv_scale action move")
                     rotate_newX = event.rawX
                     rotate_newY = event.rawY
-                    val angle_diff = Math.abs(
-                        Math.atan2(
+                    val angle_diff = abs(
+                        atan2(
                             event.rawY - scale_orgY.toDouble(),
-                            event.rawX - scale_orgX.toDouble()
-                        )
-                                - Math.atan2(
+                            event.rawX - scale_orgX.toDouble()) -
+                                atan2(
                             scale_orgY - centerY,
-                            scale_orgX - centerX
-                        )
-                    ) * 180 / Math.PI
-                    Log.v(TAG, "angle_diff: $angle_diff")
+                            scale_orgX - centerX)) * 180 / Math.PI
                     val length1 = getLength(
                         centerX,
                         centerY,
                         scale_orgX.toDouble(),
-                        scale_orgY.toDouble()
-                    )
+                        scale_orgY.toDouble())
                     val length2 = getLength(
                         centerX,
                         centerY,
                         event.rawX.toDouble(),
-                        event.rawY.toDouble()
-                    )
+                        event.rawY.toDouble())
                     val size = convertDpToPixel(
                         SELF_SIZE_DP.toFloat(),
-                        context
-                    )
-                    if ((length2 > length1
-                                && (angle_diff < 25 || Math.abs(angle_diff - 180) < 25))
-                    ) {
+                        context)
+                    if ((length2 > length1 && (angle_diff < 25 || Math.abs(angle_diff - 180) < 25))) {
                         //scale up
                         val offsetX =
-                            Math.abs(event.rawX - scale_orgX).toDouble()
+                            abs(event.rawX - scale_orgX).toDouble()
                         val offsetY =
-                            Math.abs(event.rawY - scale_orgY).toDouble()
-                        var offset = Math.max(offsetX, offsetY)
-                        offset = Math.round(offset).toDouble()
+                            abs(event.rawY - scale_orgY).toDouble()
+                        var offset = offsetX.coerceAtLeast(offsetY)
+                        offset = offset.roundToInt().toDouble()
                         this@StickerView.layoutParams.width += offset.toInt()
                         this@StickerView.layoutParams.height += offset.toInt()
                         onScaling(true)
-                        //DraggableViewGroup.this.setX((float) (getX() - offset / 2));
-                        //DraggableViewGroup.this.setY((float) (getY() - offset / 2));
-                    } else if (((length2 < length1
-                                ) && (angle_diff < 25 || Math.abs(angle_diff - 180) < 25)
-                                && (this@StickerView.layoutParams.width > size / 2
-                                ) && (this@StickerView.layoutParams.height > size / 2))
-                    ) {
+                    } else if (((length2 < length1) && (angle_diff < 25 || Math.abs(angle_diff - 180) < 25)
+                                && (this@StickerView.layoutParams.width > size / 2) && (this@StickerView.layoutParams.height > size / 2))) {
                         //scale down
                         val offsetX =
-                            Math.abs(event.rawX - scale_orgX).toDouble()
+                            abs(event.rawX - scale_orgX).toDouble()
                         val offsetY =
-                            Math.abs(event.rawY - scale_orgY).toDouble()
-                        var offset = Math.max(offsetX, offsetY)
-                        offset = Math.round(offset).toDouble()
+                            abs(event.rawY - scale_orgY).toDouble()
+                        var offset = offsetX.coerceAtLeast(offsetY)
+                        offset = offset.roundToInt().toDouble()
                         this@StickerView.layoutParams.width -= offset.toInt()
                         this@StickerView.layoutParams.height -= offset.toInt()
                         onScaling(false)
                     }
 
                     //rotate
-                    val angle = Math.atan2(
+                    val angle = atan2(
                         event.rawY - centerY,
-                        event.rawX - centerX
-                    ) * 180 / Math.PI
+                        event.rawX - centerX) * 180 / Math.PI
                     Log.v(TAG, "log angle: $angle")
-
                     //setRotation((float) angle - 45);
                     rotation = angle.toFloat() - 45
                     Log.v(TAG, "getRotation(): $rotation")
@@ -356,10 +364,19 @@ abstract class StickerView : FrameLayout {
                     postInvalidate()
                     requestLayout()
                 }
-                MotionEvent.ACTION_UP -> Log.v(TAG, "iv_scale action up")
+                MotionEvent.ACTION_UP -> {
+                    stickerListener.onStickerActionUp()
+                    Log.v(TAG, "iv_scale action up")
+                }
             }
         }
         true
+    }
+
+    private fun spacing(event: MotionEvent): Float {
+        val x = event.getX(0) - event.getX(1)
+        val y = event.getY(0) - event.getY(1)
+        return sqrt(x * x + y * y.toDouble()).toFloat()
     }
 
     override fun onDraw(canvas: Canvas?) {
@@ -394,124 +411,26 @@ abstract class StickerView : FrameLayout {
 
     fun setControlItemsHidden(isHidden: Boolean) {
         if (isHidden) {
-            imageViewBorder.setVisibility(View.VISIBLE)
-            imageViewScale.setVisibility(View.VISIBLE)
-            imageViewDelete.setVisibility(View.VISIBLE)
-            imageViewFlip.setVisibility(View.VISIBLE)
-            imageViewDone.setVisibility(View.VISIBLE)
+            imageViewBorder.visibility = View.VISIBLE
+            imageViewScale.visibility = View.VISIBLE
+            imageViewDelete.visibility = View.VISIBLE
+            imageViewFlip.visibility = View.VISIBLE
+            imageViewDone.visibility = View.VISIBLE
         } else {
-            imageViewBorder.setVisibility(View.GONE)
-            imageViewScale.setVisibility(View.GONE)
-            imageViewDelete.setVisibility(View.GONE)
-            imageViewFlip.setVisibility(View.GONE)
-            imageViewDone.setVisibility(View.GONE)
+            imageViewBorder.visibility = View.GONE
+            imageViewScale.visibility = View.GONE
+            imageViewDelete.visibility = View.GONE
+            imageViewFlip.visibility = View.GONE
+            imageViewDone.visibility = View.GONE
         }
     }
 
-    private fun handleZoom(event: MotionEvent) {
-        val newDist = getFingerSpacing(event)
-        this_orgX = this@StickerView.x
-        this_orgY = this@StickerView.y
-        scale_orgX = event.rawX
-        scale_orgY = event.rawY
-        scale_orgWidth = this@StickerView.layoutParams.width.toDouble()
-        scale_orgHeight = this@StickerView.layoutParams.height.toDouble()
-        centerX = this@StickerView.x +
-                (this@StickerView.parent as View).getX() + this@StickerView.width.toDouble() / 2
-
-
-        //double statusBarHeight = Math.ceil(25 * getContext().getResources().getDisplayMetrics().density);
-        var result = 0
-        val resourceId = resources.getIdentifier("status_bar_height", "dimen", "android")
-        if (resourceId > 0) {
-            result = resources.getDimensionPixelSize(resourceId)
-        }
-        val statusBarHeight = result.toDouble()
-        centerY = this@StickerView.y +
-                (this@StickerView.parent as View).getY() +
-                statusBarHeight + this@StickerView.height.toFloat() / 2
-        if (newDist > mDist) {
-            //zoom in
-            val angle_diff = Math.abs(
-                Math.atan2(
-                    event.rawY - scale_orgY.toDouble(),
-                    event.rawX - scale_orgX.toDouble()
-                )
-                        - Math.atan2(scale_orgY - centerY, scale_orgX - centerX)
-            ) * 180 / Math.PI
-            Log.v(TAG, "angle_diff: $angle_diff")
-            val length1 =
-                getLength(centerX, centerY, scale_orgX.toDouble(), scale_orgY.toDouble())
-            val length2 =
-                getLength(centerX, centerY, event.rawX.toDouble(), event.rawY.toDouble())
-            val size = convertDpToPixel(
-                SELF_SIZE_DP.toFloat(),
-                context
-            )
-            if (length2 > length1
-                && (angle_diff < 25 || Math.abs(angle_diff - 180) < 25)
-            ) {
-                //scale up
-                val offsetX =
-                    Math.abs(event.rawX - scale_orgX).toDouble()
-                val offsetY =
-                    Math.abs(event.rawY - scale_orgY).toDouble()
-                var offset = Math.max(offsetX, offsetY)
-                offset = Math.round(offset).toDouble()
-                this@StickerView.layoutParams.width += offset.toInt()
-                this@StickerView.layoutParams.height += offset.toInt()
-                onScaling(true)
-                //DraggableViewGroup.this.setX((float) (getX() - offset / 2));
-                //DraggableViewGroup.this.setY((float) (getY() - offset / 2));
-            }
-        } else if (newDist < mDist) {
-            //zoom out
-            val angle_diff = Math.abs(
-                Math.atan2(
-                    event.rawY - scale_orgY.toDouble(),
-                    event.rawX - scale_orgX.toDouble()
-                )
-                        - Math.atan2(scale_orgY - centerY, scale_orgX - centerX)
-            ) * 180 / Math.PI
-            Log.v(TAG, "angle_diff: $angle_diff")
-            val length1 =
-                getLength(centerX, centerY, scale_orgX.toDouble(), scale_orgY.toDouble())
-            val length2 =
-                getLength(centerX, centerY, event.rawX.toDouble(), event.rawY.toDouble())
-            val size = convertDpToPixel(
-                SELF_SIZE_DP.toFloat(),
-                context
-            )
-            if (length2 < length1 && (angle_diff < 25 || Math.abs(angle_diff - 180) < 25)
-                && this@StickerView.layoutParams.width > size / 2 && this@StickerView.layoutParams.height > size / 2
-            ) {
-                //scale down
-                val offsetX =
-                    Math.abs(event.rawX - scale_orgX).toDouble()
-                val offsetY =
-                    Math.abs(event.rawY - scale_orgY).toDouble()
-                var offset = Math.max(offsetX, offsetY)
-                offset = Math.round(offset).toDouble()
-                this@StickerView.layoutParams.width -= offset.toInt()
-                this@StickerView.layoutParams.height -= offset.toInt()
-                onScaling(false)
-            }
-        }
-        mDist = newDist
-    }
-
-    private fun getFingerSpacing(event: MotionEvent): Float {
-        // ...
-        val x = event.getX(0) - event.getX(1)
-        val y = event.getY(0) - event.getY(1)
-        return Math.sqrt(x * x + y * y.toDouble()).toFloat()
-    }
 
     protected fun getImageViewFlip(): View? {
         return imageViewFlip
     }
 
-    fun setVisiableBorderAndButton(){
+    fun setGoneBorderAndButton() {
         imageViewBorder.visibility = View.GONE
         imageViewDelete.visibility = View.GONE
         imageViewFlip.visibility = View.GONE
@@ -519,8 +438,16 @@ abstract class StickerView : FrameLayout {
         imageViewScale.visibility = View.GONE
     }
 
-    protected fun onScaling(scaleUp: Boolean) {}
-    protected fun onRotating() {}
+    fun setVisiableBorderAndButton() {
+        imageViewBorder.visibility = View.VISIBLE
+        imageViewDelete.visibility = View.VISIBLE
+        imageViewFlip.visibility = View.VISIBLE
+        imageViewDone.visibility = View.VISIBLE
+        imageViewScale.visibility = View.VISIBLE
+    }
+
+    private fun onScaling(scaleUp: Boolean) {}
+    private fun onRotating() {}
     private inner class BorderView : View {
         constructor(context: Context?) : super(context) {}
         constructor(context: Context?, attrs: AttributeSet?) : super(context, attrs) {}
@@ -553,7 +480,7 @@ abstract class StickerView : FrameLayout {
     companion object {
         private const val BUTTON_SIZE_DP = 30
         private const val SELF_SIZE_DP = 100
-        private fun convertDpToPixel(dp: Float, context: Context): Int {
+        fun convertDpToPixel(dp: Float, context: Context): Int {
             val resources: Resources = context.resources
             val metrics: DisplayMetrics = resources.displayMetrics
             val px = dp * (metrics.densityDpi / 160f)

@@ -1,8 +1,5 @@
 package com.example.demoappcanon.custom
 
-import android.animation.Animator
-import android.animation.AnimatorListenerAdapter
-import android.animation.ObjectAnimator
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.res.Resources
@@ -19,8 +16,6 @@ import android.view.View
 import android.view.View.OnClickListener
 import android.view.View.OnTouchListener
 import android.view.ViewGroup
-import android.view.animation.AccelerateDecelerateInterpolator
-import android.view.animation.DecelerateInterpolator
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.Toast
@@ -203,7 +198,10 @@ abstract class StickerView : FrameLayout {
     protected abstract val mainView: View?
     private var widthOld = 0
     private var heightOld = 0
-
+    private var postionX = 0F
+    private var postionY = 0F
+    private var heightTest = 0
+    private var widthTest = 0
     @SuppressLint("ClickableViewAccessibility")
     private val mTouchListener = OnTouchListener { view, event ->
         if (view.tag == "DraggableViewGroup") {
@@ -219,8 +217,12 @@ abstract class StickerView : FrameLayout {
                     oldDist = spacing(event)
                     if (oldDist > 10F) {
                         mode = ZOOM
-                        widthOld = this.layoutParams.width
-                        heightOld = this.layoutParams.height
+                        widthOld = this.width
+                        heightOld = this.height
+                        heightTest = heightOld
+                        widthTest = widthOld
+                        postionX = this.x
+                        postionY = this.y
                     }
                 }
                 MotionEvent.ACTION_MOVE -> {
@@ -233,8 +235,6 @@ abstract class StickerView : FrameLayout {
                             (this@StickerView.x + offsetX).toFloat()
                         val coordinateY: Float =
                             (this@StickerView.y + offsetY).toFloat()
-                        val coordinateXLeft = (this@StickerView.left + offsetX).toInt()
-                        val coordinateYTop = (this@StickerView.top + offsetY).toInt()
                         this@StickerView.x = coordinateX
                         this@StickerView.y = coordinateY
                         move_orgX = event.rawX
@@ -249,23 +249,34 @@ abstract class StickerView : FrameLayout {
                         if (event.pointerCount == 2) {
                             val newDist = spacing(event)
                             if (newDist > 10f) {
-                                val scale: Float = newDist / oldDist * view.scaleX
+                                val scale: Float = newDist / (oldDist * view.scaleX)
                                 if (scale > 0.6) {
 //                                    view.scaleX = scale
 //                                    view.scaleY = scale
-                                    val middleXView = this.x + widthOld / 2
-                                    val middleYView = this.y + heightOld / 2
+
                                     val widthNew = (widthOld.toFloat() * scale).toInt()
                                     val heightNew = (heightOld.toFloat() * scale).toInt()
-                                    val middleXNew = this.x + widthNew / 2
-                                    val middleYNew = this.y + heightNew / 2
-                                    val org_x = middleXNew - middleXView
-                                    val org_y = middleYNew - middleYView
-                                    this.x = this.x - org_x
-                                    this.y = this.y - org_y
+
+                                    Log.e("TAG", "width old ${widthOld}")
                                     this.layoutParams.width = widthNew
                                     this.layoutParams.height = heightNew
-                                    this.requestLayout()
+                                    requestLayout()
+                                    var middleXNew = this.x + widthNew / 2
+                                    var middleYNew = this.y + heightNew / 2
+
+                                    var middleXOld = this.x + widthTest / 2
+                                    var middleYOld = this.y + heightTest / 2
+
+                                    widthTest = widthNew
+                                    heightTest = heightNew
+                                    val offsetX = middleXNew - middleXOld
+                                    val offsetY = middleYNew - middleYOld
+                                    x -= offsetX
+                                    y -= offsetY
+                                    invalidate()
+                                    postInvalidate()
+                                    Log.e("TAG", "width new ${this.width}")
+
                                     stickerListener.onScaleSticker(this)
                                 }
                             }
@@ -288,7 +299,7 @@ abstract class StickerView : FrameLayout {
                     rotate_orgX = event.rawX
                     rotate_orgY = event.rawY
                     centerX = this@StickerView.x +
-                            (this@StickerView.parent as View).getX() + this@StickerView.width.toDouble() / 2
+                            (this@StickerView.parent as View).x + this@StickerView.width.toDouble() / 2
                     var result = 0
                     val resourceId =
                         resources.getIdentifier("status_bar_height", "dimen", "android")
@@ -297,7 +308,7 @@ abstract class StickerView : FrameLayout {
                     }
                     val statusBarHeight = result.toDouble()
                     centerY = this@StickerView.y +
-                            (this@StickerView.parent as View).getY() +
+                            (this@StickerView.parent as View).y +
                             statusBarHeight + this@StickerView.height.toFloat() / 2
                     stickerListener.onStickerChoose(this)
                 }

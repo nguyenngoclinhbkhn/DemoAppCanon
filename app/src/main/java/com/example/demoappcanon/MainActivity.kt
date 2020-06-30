@@ -214,6 +214,11 @@ class MainActivity : AppCompatActivity(), View.OnClickListener, DrawView.OnDrawV
     }
 
     override fun onScaleSticker(sticker: StickerView) {
+        stickerFocus?.x = sticker.x
+        stickerFocus?.y = sticker.y
+        stickerFocus?.rotation = sticker.rotation
+        stickerFocus?.layoutParams = sticker.layoutParams
+        stickerFocus?.requestLayout()
         Log.e("TAG", "width height ${sticker.width} + ${sticker.height}")
 //        stickerFocus?.layoutParams?.width = sticker.width
 //        stickerFocus?.layoutParams?.height = sticker.height
@@ -243,12 +248,12 @@ class MainActivity : AppCompatActivity(), View.OnClickListener, DrawView.OnDrawV
     }
 
     override fun onStickerActionUp() {
-        stickerFocus?.width?.let { width = it }
-        stickerFocus?.height?.let { height = it }
+        width = stickerFocus?.width!!
+        height = stickerFocus?.height!!
     }
 
     override fun onButtonDrawClicked(button: String) {
-        when(button){
+        when (button) {
             "Draw1" -> {
 
             }
@@ -265,5 +270,13 @@ class MainActivity : AppCompatActivity(), View.OnClickListener, DrawView.OnDrawV
 
             }
         }
+        drawView.isEnabled = true
+        drawView.visibility = View.VISIBLE
+    }
+
+    private fun refreshList(list: ArrayList<StickerModel>){
+//        list.forEach {
+//            if (it.isFake ==)
+//        }
     }
 }

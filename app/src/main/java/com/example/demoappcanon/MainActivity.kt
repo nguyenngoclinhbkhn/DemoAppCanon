@@ -4,12 +4,13 @@ import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
 import android.animation.ObjectAnimator
 import android.app.Activity
+import android.app.ProgressDialog
+import android.content.Context
 import android.content.Intent
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import android.graphics.Color
-import android.graphics.Point
+import android.content.SharedPreferences
+import android.graphics.*
 import android.os.Bundle
+import android.util.Base64
 import android.util.Log
 import android.view.Gravity
 import android.view.View
@@ -19,16 +20,27 @@ import android.view.animation.DecelerateInterpolator
 import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.ImageView
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.demoappcanon.adapter.AdapterButtonDraw
 import com.example.demoappcanon.adapter.AdapterStickerOnImage
-import com.example.demoappcanon.custom.*
+import com.example.demoappcanon.custom.DrawView
+import com.example.demoappcanon.custom.StickerImageView
+import com.example.demoappcanon.custom.StickerTextView
+import com.example.demoappcanon.custom.StickerView
+import com.example.demoappcanon.model.StickerModel
+import io.reactivex.Single
+import io.reactivex.android.schedulers.AndroidSchedulers
+import io.reactivex.observers.DisposableSingleObserver
+import io.reactivex.schedulers.Schedulers
 import kotlinx.android.synthetic.main.activity_main.*
+import java.io.ByteArrayOutputStream
 
 
 class MainActivity : AppCompatActivity(), View.OnClickListener, DrawView.OnDrawViewListener,
-    StickerView.OnStickerListener, AdapterButtonDraw.OnButtonDrawListener {
+    StickerView.OnStickerListener, AdapterButtonDraw.OnButtonDrawListener,
+    AdapterStickerOnImage.OnStickerImageListListener {
     private lateinit var imgPreview: ImageView
     private lateinit var frameRoot: FrameLayout
     private lateinit var stickerRoot: StickerImageView
@@ -45,9 +57,47 @@ class MainActivity : AppCompatActivity(), View.OnClickListener, DrawView.OnDrawV
     private var height: Int = 0
     private lateinit var adapterStickerOnImage: AdapterStickerOnImage
     private lateinit var listSticker: ArrayList<StickerModel>
+
+    private lateinit var sharePreferences: SharedPreferences
+
+    companion object {
+        const val NAME = "NAME"
+        const val IMAGE_DEMO = "DEMO"
+
+        const val POSITIONX = "PositionX"
+        const val POSITIONY = "PositionY"
+        const val WIDTH = "Width"
+        const val HEIGHT = "Height"
+        const val ROTATION = "Rotation"
+        const val BITMAP = "Bitmap"
+        const val IS_STICKER_IMAGE = "IS_"
+        const val SIZE = "SIZE"
+
+        fun bitmapToString(bitmap: Bitmap): String? {
+            val baos = ByteArrayOutputStream()
+            bitmap.compress(Bitmap.CompressFormat.PNG, 100, baos)
+            val b: ByteArray = baos.toByteArray()
+            return Base64.encodeToString(b, Base64.DEFAULT)
+        }
+
+        fun stringToBitmap(encodedString: String?): Bitmap? {
+            return try {
+                val encodeByte =
+                    Base64.decode(encodedString, Base64.DEFAULT)
+                BitmapFactory.decodeByteArray(encodeByte, 0, encodeByte.size)
+            } catch (e: Exception) {
+                e.message
+                null
+            }
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+        sharePreferences = getSharedPreferences(NAME, Context.MODE_PRIVATE)
+
+
 
         listSticker = arrayListOf()
         drawView = findViewById(R.id.drawView)
@@ -61,14 +111,6 @@ class MainActivity : AppCompatActivity(), View.OnClickListener, DrawView.OnDrawV
         stickerFake?.setStickerListener(this)
         frameRoot.addView(stickerFake)
         stickerFake?.visibility = View.GONE
-
-        val display = windowManager.defaultDisplay
-        val size = Point()
-        display.getSize(size)
-        val width: Int = size.x
-
-        drawView.setKind5()
-
 
         bitmapOrigin = BitmapFactory.decodeResource(resources, R.drawable.test)
 
@@ -90,6 +132,14 @@ class MainActivity : AppCompatActivity(), View.OnClickListener, DrawView.OnDrawV
             imgPreview.layoutParams = layoutParams
             imgPreview.requestLayout()
 
+            val valueRestore = intent.getStringExtra(ImageSavedListActivity.KEY_RESTORE)
+            valueRestore?.let {
+                if (it.isNotEmpty()) {
+                    restore()
+                    Log.e("TAG", "Restore ne")
+                }
+            }
+
 //            frameRoot.addView(imgPreview, layoutParams)
 //            frameRoot.addView(drawView, FrameLayout.LayoutParams.MATCH_PARENT,
 //                FrameLayout.LayoutParams.MATCH_PARENT)
@@ -102,12 +152,12 @@ class MainActivity : AppCompatActivity(), View.OnClickListener, DrawView.OnDrawV
         stickerText = StickerTextView(this)
         stickerText?.setStickerListener(this)
 
-        if (drawView.parent != null) {
-            (drawView.parent as ViewGroup).removeView(drawView)
-        }
-        frameRoot.addView(drawView, FrameLayout.LayoutParams.MATCH_PARENT,
-        FrameLayout.LayoutParams.MATCH_PARENT)
 
+//        if (drawView.parent != null) {
+//            (drawView.parent as ViewGroup).removeView(drawView)
+//        }
+//        frameRoot.addView(drawView, FrameLayout.LayoutParams.MATCH_PARENT,
+//        FrameLayout.LayoutParams.MATCH_PARENT)
 
 
         adapterButton = AdapterButtonDraw(this)
@@ -116,25 +166,127 @@ class MainActivity : AppCompatActivity(), View.OnClickListener, DrawView.OnDrawV
         recyclerDraw.adapter = adapterButton
         sticker.setOnClickListener(this)
         save.setOnClickListener(this)
+        saveBitmap.setOnClickListener(this)
 
+
+    }
+
+    private fun restore() {
+        if (sharePreferences == null) {
+            sharePreferences = getSharedPreferences(NAME, Context.MODE_PRIVATE)
+        }
+        val size = sharePreferences.getInt(SIZE, 0)
+        if (size > 0) {
+            for (i in 0 until size) {
+                val positionX = sharePreferences.getFloat("$POSITIONX$i", 0F)
+                val positionY = sharePreferences.getFloat("$POSITIONY$i", 0F)
+                val width = sharePreferences.getInt("$WIDTH$i", 0)
+                val height = sharePreferences.getInt("$HEIGHT$i", 0)
+                val rotation = sharePreferences.getFloat("$ROTATION$i", 0F)
+                val bitmap = stringToBitmap(sharePreferences.getString("$BITMAP$i", ""))
+
+                val stickerImageView = StickerImageView(this)
+                stickerImageView.setStickerListener(this)
+                frameRoot.addView(stickerImageView)
+                stickerImageView.layoutParams.width = width
+                stickerImageView.layoutParams.height = height
+                stickerImageView.requestLayout()
+
+                stickerImageView.post {
+                    stickerImageView.x = positionX
+                    stickerImageView.y = positionY
+                }
+
+                Log.e("TAG", "position x share $positionX ${stickerImageView.x}")
+                Log.e("TAG", "position y share $positionY ${stickerImageView.y}")
+
+                stickerImageView.rotation = rotation
+                stickerImageView.setImageBitmap(bitmap)
+                listSticker.add(StickerModel(stickerImageView, isChoose = false, isFake = false))
+            }
+        }
+        adapterStickerOnImage = AdapterStickerOnImage(this)
+        recyclerSticker.layoutManager =
+            LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
+        recyclerSticker.adapter = adapterStickerOnImage
+        adapterStickerOnImage.setList(listSticker)
     }
 
     override fun onClick(v: View?) {
         when (v?.id) {
             R.id.sticker -> {
-                val stickerImageView = StickerImageView(this)
-                stickerImageView.setStickerListener(this)
-                stickerImageView.setImageResource(R.drawable.husky)
-                frameRoot.addView(stickerImageView)
+                listSticker.forEach {
+                    Log.e("TAG", "position x old ${it.stickerView.x}")
+                    Log.e("TAG", "position y old ${it.stickerView.y}")
+                }
+//                val stickerImageView = StickerImageView(this)
+//                stickerImageView.setStickerListener(this)
+//                stickerImageView.setImageResource(R.drawable.husky)
+//                frameRoot.addView(stickerImageView)
+//                listSticker.add(
+//                    StickerModel(
+//                        stickerImageView,
+//                        true,
+//                        false
+//                    )
+//                )
+//                frameRoot.addView(stickerText)
+//                stickerFocus = stickerImageView
+//                makeStickerFake(stickerImageView.width,
+//                    stickerImageView.height,
+//                    stickerImageView.x,
+//                    stickerImageView.y)
 
-                val stickerText = StickerTextView(this)
-                stickerText.setStickerListener(this)
-                stickerText.setText("Xin chao")
-                frameRoot.addView(stickerText)
+
             }
 
             R.id.save -> {
-                Log.e("TAG" , "size sticker focus ${stickerFocus?.width} : ${stickerFocus?.height}")
+                showDialog()
+                Single.create<String> {
+                    saveElementToSharePreferent()
+                    it.onSuccess("OK")
+                }.subscribeOn(Schedulers.io())
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribe(object : DisposableSingleObserver<String>() {
+                        override fun onSuccess(t: String) {
+                            closeDialog()
+                            finish()
+                        }
+
+                        override fun onError(e: Throwable) {
+                        }
+
+                    })
+            }
+            R.id.saveBitmap -> {
+                Log.e("TAG", "x stickerFocus ${stickerFocus.x}")
+                Log.e("TAG", "y stickerFocus ${stickerFocus.y}")
+            }
+        }
+    }
+
+    private fun saveElementToSharePreferent() {
+        sharePreferences.edit().putString(IMAGE_DEMO, bitmapToString(bitmapResize)).commit()
+        sharePreferences.edit().putInt(SIZE, listSticker.size).commit()
+        for (i in 0 until listSticker.size) {
+            if (listSticker[i].stickerView is StickerImageView) {
+                sharePreferences.edit().putFloat("$POSITIONX$i", listSticker[i].stickerView.x)
+                    .commit()
+                sharePreferences.edit().putFloat("$POSITIONY$i", listSticker[i].stickerView.y)
+                    .commit()
+                sharePreferences.edit().putInt("$WIDTH$i", listSticker[i].stickerView.width)
+                    .commit()
+                sharePreferences.edit().putInt("$HEIGHT$i", listSticker[i].stickerView.height)
+                    .commit()
+                sharePreferences.edit().putFloat("$ROTATION$i", listSticker[i].stickerView.rotation)
+                    .commit()
+                sharePreferences.edit().putString(
+                    "$BITMAP$i",
+                    bitmapToString(listSticker[i].stickerView.getBitmapFromView()!!)
+                ).commit()
+
+            } else {
+
             }
         }
     }
@@ -157,9 +309,9 @@ class MainActivity : AppCompatActivity(), View.OnClickListener, DrawView.OnDrawV
                     } else {
                         keyColorText?.let { stickerText?.setFontAndColor(this, null, it) }
                     }
-                    stickerText?.post {
-                        stickerText?.rotation = if(keyRotation!!) 90f else 0f
-                    }
+//                    stickerText?.post {
+//                        stickerText?.isRotationHozizontal
+//                    }
                     if (stickerText?.parent != null) {
                         (stickerText?.parent as ViewGroup).removeView(stickerText)
                     }
@@ -173,6 +325,7 @@ class MainActivity : AppCompatActivity(), View.OnClickListener, DrawView.OnDrawV
         //convert draw to bitmap when touch up
         val stickerImageView = StickerImageView(this)
         stickerImageView.isEnabled = false
+        stickerImageView.setGoneBorderAndButton()
         stickerImageView.setStickerListener(this)
         stickerImageView.setImageBitmap(drawView.getBitmapNeedToCut())
         frameRoot.addView(
@@ -182,49 +335,66 @@ class MainActivity : AppCompatActivity(), View.OnClickListener, DrawView.OnDrawV
         stickerImageView.x = drawView.getPairPositionToPutBitmapInFrame().first.toFloat()
         stickerImageView.y = drawView.getPairPositionToPutBitmapInFrame().second.toFloat()
         listSticker.firstOrNull { it.isChoose }?.isChoose = false
-        listSticker.add(StickerModel(stickerImageView, true, false))
-        stickerFocus = listSticker.firstOrNull { it.isChoose }?.stickerView
+        listSticker.add(
+            StickerModel(
+                stickerImageView,
+                true,
+                false
+            )
+        )
+        stickerFocus = listSticker.first { it.isChoose }.stickerView
         width = drawView.getPairSizeBitmapNeedToCut().first
         height = drawView.getPairSizeBitmapNeedToCut().second
 
-        Log.e("TAG" , "width height first $width $height")
+        Log.e("TAG", "width height first $width $height")
+        makeStickerFake(
+            drawView.getPairSizeBitmapNeedToCut().first,
+            drawView.getPairSizeBitmapNeedToCut().second,
+            drawView.getPairPositionToPutBitmapInFrame().first.toFloat(),
+            drawView.getPairPositionToPutBitmapInFrame().second.toFloat(),
+            0F
+        )
+        stickerFake?.setVisiableBorderAndButton()
+        disableDrawView()
+
+    }
+
+    private fun makeStickerFake(
+        width: Int, height: Int, positionX: Float, positionY: Float,
+        rotation: Float
+    ) {
         if (stickerFake?.parent == frameRoot) {
             frameRoot.removeView(stickerFake)
             frameRoot.addView(
                 stickerFake,
-                drawView.getPairSizeBitmapNeedToCut().first,
-                drawView.getPairSizeBitmapNeedToCut().second
+                width,
+                height
             )
-            stickerFake?.x = drawView.getPairPositionToPutBitmapInFrame().first.toFloat()
-            stickerFake?.y = drawView.getPairPositionToPutBitmapInFrame().second.toFloat()
+            stickerFake?.x = positionX
+            stickerFake?.y = positionY
+            stickerFake?.rotation = rotation
             stickerFake?.visibility = View.VISIBLE
         }
-        drawView.isEnabled = false
-        drawView.visibility = View.GONE
-
+        stickerFake?.setVisiableBorderAndButton()
     }
-    var stickerFocus: StickerView?= null
+
+    lateinit var stickerFocus: StickerView
     override fun onStickerChoose(sticker: StickerView) {
         //when choose sticker
-//        stickerFocus = listSticker.firstOrNull { it.isChoose }?.stickerView
-        stickerFocus?.x = sticker.x
-        stickerFocus?.y = sticker.y
-        stickerFocus?.rotation = sticker.rotation
-        stickerFocus?.layoutParams = sticker.layoutParams
-        stickerFocus?.requestLayout()
+        stickerFocus = listSticker.first { it.isChoose }.stickerView
+        stickerFocus.x = sticker.x
+        stickerFocus.y = sticker.y
+        stickerFocus.rotation = sticker.rotation
+        stickerFocus.layoutParams = sticker.layoutParams
+        stickerFocus.requestLayout()
 
     }
 
     override fun onScaleSticker(sticker: StickerView) {
-        stickerFocus?.x = sticker.x
-        stickerFocus?.y = sticker.y
-        stickerFocus?.rotation = sticker.rotation
-        stickerFocus?.layoutParams = sticker.layoutParams
-        stickerFocus?.requestLayout()
-        Log.e("TAG", "width height ${sticker.width} + ${sticker.height}")
-//        stickerFocus?.layoutParams?.width = sticker.width
-//        stickerFocus?.layoutParams?.height = sticker.height
-//        stickerFocus?.requestLayout()
+        stickerFocus.x = sticker.x
+        stickerFocus.y = sticker.y
+        stickerFocus.layoutParams = sticker.layoutParams
+        stickerFocus.requestLayout()
     }
 
     override fun onStickerFlipClicked() {
@@ -236,8 +406,9 @@ class MainActivity : AppCompatActivity(), View.OnClickListener, DrawView.OnDrawV
         oa2.interpolator = AccelerateDecelerateInterpolator()
         oa1.addListener(object : AnimatorListenerAdapter() {
             override fun onAnimationEnd(animation: Animator?) {
-                stickerFocus?.rotationY = if (stickerFocus?.rotationY == -180f) 0f else -180f
-                stickerFocus?.invalidate()
+                stickerFocus?.mainView?.rotationY =
+                    if (stickerFocus?.mainView?.rotationY == -180f) 0f else -180f
+                stickerFocus?.mainView?.invalidate()
                 oa2.start()
             }
         })
@@ -249,10 +420,6 @@ class MainActivity : AppCompatActivity(), View.OnClickListener, DrawView.OnDrawV
         stickerFocus?.requestLayout()
     }
 
-    override fun onStickerActionUp() {
-        width = stickerFocus?.width!!
-        height = stickerFocus?.height!!
-    }
 
     override fun onButtonDrawClicked(button: String) {
         when (button) {
@@ -269,16 +436,110 @@ class MainActivity : AppCompatActivity(), View.OnClickListener, DrawView.OnDrawV
 
             }
             "Draw5" -> {
-
+                drawView.setDraw5()
             }
         }
+        enableDrawView()
+    }
+
+    override fun onStickerImageOnListClicked(stickerModel: StickerModel) {
+        disableDrawView()
+        listSticker.firstOrNull { it.isChoose }?.isChoose = false
+        val stickerModel = listSticker.first { it.stickerView == stickerModel.stickerView }
+        stickerModel.isChoose = true
+        stickerFocus = stickerModel.stickerView
+        makeStickerFake(
+            stickerFocus.width, stickerFocus.height,
+            stickerFocus.x, stickerFocus.y,
+            stickerFocus.rotation
+        )
+        Toast.makeText(this, "Clicked", Toast.LENGTH_SHORT).show()
+    }
+
+
+    private fun enableDrawView() {
         drawView.isEnabled = true
         drawView.visibility = View.VISIBLE
     }
 
-    private fun refreshList(list: ArrayList<StickerModel>){
-//        list.forEach {
-//            if (it.isFake ==)
-//        }
+    private fun disableDrawView() {
+        drawView.isEnabled = false
+        drawView.visibility = View.GONE
     }
+
+    private fun removeView(view: View) {
+        if (view.parent == frameRoot) {
+            frameRoot.removeView(view)
+        }
+    }
+
+
+    private var progressDialog: ProgressDialog? = null
+    private fun showDialog() {
+        if (progressDialog == null) {
+            progressDialog = ProgressDialog(this)
+        }
+        progressDialog!!.show()
+    }
+
+    private fun closeDialog() {
+        Log.e("TAG", "vao close ne")
+        if (progressDialog != null) {
+            progressDialog!!.cancel()
+        }
+    }
+
+
+    public fun drawStickerOnBitmapVersion2(bitmap: Bitmap, imgPhotoEdit: ImageView) {
+        val widthBitmap = bitmap.width
+        val heightBitmap = bitmap.height
+
+        val paint = Paint();
+        val width = (frameRoot.getWidth() - imgPhotoEdit.width) / 2;
+        val height = (frameRoot.getHeight() - imgPhotoEdit.height) / 2;
+        val canvas = Canvas(bitmap)
+        for (i in 0 until listSticker.size) {
+            val matrix = Matrix()
+            matrix.setRotate(listSticker[i].stickerView.rotation)
+            val bitmap2 = listSticker[i].stickerView.getBitmapFromView()
+            val bitmap3 =
+                Bitmap.createBitmap(bitmap2!!, 0, 0, bitmap2.width, bitmap2.height, matrix, true)
+            val resized = Bitmap.createScaledBitmap(
+                bitmap3,
+                bitmap3.width * bitmap.width / imgPreview.width,
+                bitmap3.height * bitmap.height / imgPreview.height, true
+            )
+            bitmap3.recycle()
+            val degree = listSticker[i].stickerView.rotation * Math.PI / 180
+//            val valueY =
+
+
+//        for (int index = 2; index < (frameLayoutImage).getChildCount(); ++index) {
+//            View nextChild = (frameLayoutImage).getChildAt(index);
+//            if (nextChild instanceof StickerTextView) {
+//            }
+//            final Matrix matrix = new Matrix();
+//            matrix.setRotate(nextChild.getRotation());
+//            Bitmap bitmap2 = BitmapProcess.getBitmapFromView(nextChild);
+//            Bitmap bitmap3 = Bitmap.createBitmap(bitmap2, 0, 0,
+//            bitmap2.getWidth(), bitmap2.getHeight(), matrix, true);
+//            Bitmap resized = Bitmap.createScaledBitmap(bitmap3, bitmap3.getWidth() * bitmap.getWidth() / imgPhotoEdit.getWidth(),
+//            bitmap3.getHeight() * bitmap.getHeight() / imgPhotoEdit.getHeight(), true);
+//            bitmap3.recycle();
+//            double degree = nextChild.getRotation() * Math.PI / 180;
+//            double valueY = nextChild.getHeight() * ((Math.sin(degree) * Math.cos(degree)) /
+//                    (Math.sin(degree) + Math.cos(degree) + 1));
+//            float x = nextChild.getX() - (float) Math.abs(valueY) - width;
+//            float y = nextChild.getY() - (float) Math.abs(valueY) - height;
+//            double coordinateX1 = ((x) * bitmap.getWidth() / (double) (imgPhotoEdit.getWidth()));
+//            double coordinateY1 = (y) * bitmap.getHeight() / (double) (imgPhotoEdit.getHeight());
+//            canvas.drawBitmap(resized, (int) coordinateX1, (int) coordinateY1, paint);
+//            Log.e("TAG", " hello " + nextChild.toString());
+//
+//        }
+        }
+
+
+    }
+
 }

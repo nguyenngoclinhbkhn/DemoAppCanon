@@ -38,6 +38,11 @@
         android:layout_height="match_parent"
         android:id="@+id/drawView" />
 
+    <androidx.recyclerview.widget.RecyclerView
+        android:layout_width="match_parent"
+        android:id="@+id/recyclerSticker"
+        android:layout_height="65dp"
+        android:layout_above="@id/linearBottom"/>
    <LinearLayout
        android:layout_height="50dp"
        android:layout_width="match_parent"
@@ -69,12 +74,6 @@
            android:id="@+id/recyclerDraw"
            android:layout_height="match_parent"
            android:layout_weight="2" />
-
-       <androidx.recyclerview.widget.RecyclerView
-           android:layout_width="0dp"
-           android:id="@+id/recyclerSticker"
-           android:layout_height="match_parent"
-           android:layout_weight="2" />
    </LinearLayout>
 
     <Button
@@ -84,5 +83,13 @@
         android:layout_margin="10dp"
         android:id="@+id/save"
         android:text="save"/>
+
+    <Button
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_margin="10dp"
+        android:layout_toLeftOf="@+id/save"
+        android:id="@+id/saveBitmap"
+        android:text="save bitmap"/>
 
 </RelativeLayout>

@@ -78,4 +78,8 @@ class StickerTextView : StickerView {
             return px / scaledDensity
         }
     }
+
+    fun getBitmap(){
+        return
+    }
 }

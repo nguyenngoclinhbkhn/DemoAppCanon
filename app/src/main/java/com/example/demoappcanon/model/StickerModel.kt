@@ -1,4 +1,6 @@
-package com.example.demoappcanon.custom
+package com.example.demoappcanon.model
+
+import com.example.demoappcanon.custom.StickerView
 
 data class StickerModel(
     var stickerView: StickerView,
@@ -11,6 +13,7 @@ data class StickerModel(
         }else{
             stickerView.setGoneBorderAndButton()
         }
+        stickerView.isEnabled = false
     }
 
     fun refresh(){

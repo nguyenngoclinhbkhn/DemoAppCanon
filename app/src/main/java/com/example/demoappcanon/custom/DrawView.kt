@@ -13,7 +13,9 @@ import android.view.View
 import android.view.View.OnTouchListener
 import androidx.annotation.Nullable
 import androidx.annotation.RequiresApi
+import com.example.demoappcanon.Draw
 import kotlin.math.abs
+import kotlin.math.sqrt
 
 
 class DrawView : View {
@@ -35,7 +37,8 @@ class DrawView : View {
     private var pointListAfterDraw = arrayListOf<Point>()
     private lateinit var pairSizeBitmapNeedToCut: Pair<Int, Int>
     private lateinit var pairPositionToPutBitmapInFrame: Pair<Int, Int>
-
+    private lateinit var pairCenterPositionXY: Pair<Int, Int>
+    private var draw = 0
 
 
     // cái này để vẽ line thứ 5
@@ -174,10 +177,26 @@ class DrawView : View {
     private fun touch_up() {
         mPath?.lineTo(mX, mY)
         pointListAfterDraw.add(Point(mX.toInt(), mY.toInt()))
-        mCanvas?.drawPath(mPath!!, paint!!)
-        mCanvas?.drawPath(mPath!!, paint4)
-        mCanvas?.drawPath(mPath!!, paint5)
-        mCanvas?.drawPath(mPath!!, paintRedShadow)
+        when(draw){
+            Draw.DRAW_1.value -> {
+
+            }
+            Draw.DRAW_2.value -> {
+
+            }
+            Draw.DRAW_3.value -> {
+
+            }
+            Draw.DRAW_4.value -> {
+
+            }
+            Draw.DRAW_5.value -> {
+                mCanvas?.drawPath(mPath!!, paint!!)
+                mCanvas?.drawPath(mPath!!, paint4)
+                mCanvas?.drawPath(mPath!!, paint5)
+                mCanvas?.drawPath(mPath!!, paintRedShadow)
+            }
+        }
         pairSizeBitmapNeedToCut = findWidthHeightBitmapNeedToCut(pointListAfterDraw)
         pointListAfterDraw.clear()
         mPath?.reset()
@@ -185,10 +204,6 @@ class DrawView : View {
 
 
 
-    interface OnViewQuestionListener {
-        fun onViewQuestionCreate()
-        fun onViewQuestionGone()
-    }
 
 
     companion object {
@@ -204,24 +219,29 @@ class DrawView : View {
     }
 
 
-    fun setKind1(){
+    fun setDraw1(){
+        draw = Draw.DRAW_1.value
 
     }
-    fun setKind2(){
+    fun setDraw2(){
+        draw = Draw.DRAW_2.value
         paint?.color = colorFinal
         paint?.alpha = 50
     }
 
-    fun setKind3(){
+    fun setDraw3(){
+        draw = Draw.DRAW_3.value
     }
 
-    fun setKind4(){
+    fun setDraw4(){
+        draw = Draw.DRAW_4.value
         paint?.setShadowLayer(2F, -8F, 8F, Color.GREEN )
 //        paint?.maskFilter = BlurMaskFilter(12F, BlurMaskFilter.Blur.NORMAL)
 
     }
 
-    fun setKind5(){
+    fun setDraw5(){
+        draw = Draw.DRAW_5.value
         paint4 = Paint(Paint.ANTI_ALIAS_FLAG)
         paint4.color = Color.WHITE
         paint4.strokeJoin = Paint.Join.ROUND // set the join to round you want
@@ -251,6 +271,7 @@ class DrawView : View {
 
     fun getBitmapNeedToCut(): Bitmap?{
         val bitmapSum = bitmap?.copy(Bitmap.Config.ARGB_8888, true)
+//        bitmapSum?.recycle()
         return Bitmap.createBitmap(bitmapSum!!, pairPositionToPutBitmapInFrame.first,
         pairPositionToPutBitmapInFrame.second,
         pairSizeBitmapNeedToCut.first,
@@ -288,11 +309,18 @@ class DrawView : View {
         }
         pairPositionToPutBitmapInFrame = Pair(xMin, yMin)
 
+//        pairCenterPositionXY = Pair(xMin + sqrt((xMin - xMax) * (xMin - xMax) + (yMin - yMax) * (yMin - yMax)),
+//        yMin)
+
         return Pair(abs(xMax - xMin), (yMax - yMin))
     }
 
     fun getPairSizeBitmapNeedToCut(): Pair<Int, Int>{
         return pairSizeBitmapNeedToCut
+    }
+
+    fun getPairCenterPositionXY(){
+
     }
 
     fun getPairPositionToPutBitmapInFrame(): Pair<Int, Int>{

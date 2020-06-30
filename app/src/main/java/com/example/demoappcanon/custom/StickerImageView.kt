@@ -48,5 +48,8 @@ class StickerImageView : StickerView {
         iv_main!!.setImageBitmap(bmp)
     }
 
+    fun getBitmap(): Bitmap{
+        return (iv_main?.drawable as BitmapDrawable).bitmap
+    }
 
 }

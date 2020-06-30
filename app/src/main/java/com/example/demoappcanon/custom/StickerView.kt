@@ -3,10 +3,7 @@ package com.example.demoappcanon.custom
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.res.Resources
-import android.graphics.Canvas
-import android.graphics.Color
-import android.graphics.Paint
-import android.graphics.Rect
+import android.graphics.*
 import android.util.AttributeSet
 import android.util.DisplayMetrics
 import android.util.Log
@@ -69,7 +66,6 @@ abstract class StickerView : FrameLayout {
         fun onStickerChoose(sticker: StickerView)
         fun onScaleSticker(sticker: StickerView)
         fun onStickerFlipClicked()
-        fun onStickerActionUp()
     }
 
     constructor(context: Context) : super(context) {
@@ -131,6 +127,7 @@ abstract class StickerView : FrameLayout {
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.MATCH_PARENT
         )
+//        imageViewBorder.visibility = View.GONE
         iv_border_params.setMargins(margin, margin, margin, margin)
         val iv_scale_params = LayoutParams(
             convertDpToPixel(
@@ -164,6 +161,7 @@ abstract class StickerView : FrameLayout {
                 getContext()
             )
         )
+//        imageViewBorder.setBackgroundColor(Color.GREEN)
         iv_flip_params.gravity = Gravity.BOTTOM or Gravity.LEFT
         this.layoutParams = this_params
         this.addView(mainView, iv_main_params)
@@ -192,7 +190,7 @@ abstract class StickerView : FrameLayout {
     val isFlip: Boolean
         get() = mainView?.rotationY === -180f
 
-    protected abstract val mainView: View?
+    abstract val mainView: View?
     private var widthOld = 0
     private var heightOld = 0
     private var postionX = 0F
@@ -207,7 +205,6 @@ abstract class StickerView : FrameLayout {
                     Log.v(TAG, "sticker view action down")
                     move_orgX = event.rawX
                     move_orgY = event.rawY
-                    stickerListener.onStickerChoose(this)
                     mode = DRAG;
                 }
                 MotionEvent.ACTION_POINTER_DOWN -> {
@@ -248,9 +245,6 @@ abstract class StickerView : FrameLayout {
                             if (newDist > 10f) {
                                 val scale: Float = newDist / (oldDist * view.scaleX)
                                 if (scale > 0.6) {
-//                                    view.scaleX = scale
-//                                    view.scaleY = scale
-
                                     val widthNew = (widthOld.toFloat() * scale).toInt()
                                     val heightNew = (heightOld.toFloat() * scale).toInt()
 
@@ -280,8 +274,9 @@ abstract class StickerView : FrameLayout {
                         }
                     }
                 }
-                MotionEvent.ACTION_UP ->
-                    stickerListener.onStickerActionUp()
+                MotionEvent.ACTION_UP -> {
+
+                }
             }
         } else if (view.tag.equals("iv_scale")) {
             when (event.action) {
@@ -307,7 +302,6 @@ abstract class StickerView : FrameLayout {
                     centerY = this@StickerView.y +
                             (this@StickerView.parent as View).y +
                             statusBarHeight + this@StickerView.height.toFloat() / 2
-                    stickerListener.onStickerChoose(this)
                 }
                 MotionEvent.ACTION_MOVE -> {
                     Log.v(TAG, "iv_scale action move")
@@ -376,7 +370,6 @@ abstract class StickerView : FrameLayout {
                     requestLayout()
                 }
                 MotionEvent.ACTION_UP -> {
-                    stickerListener.onStickerActionUp()
                     Log.v(TAG, "iv_scale action up")
                 }
             }
@@ -450,8 +443,8 @@ abstract class StickerView : FrameLayout {
     }
 
     fun setVisiableBorderAndButton() {
-        imageViewBorder.visibility = View.VISIBLE
-        imageViewDelete.visibility = View.VISIBLE
+//        imageViewBorder.visibility = View.VISIBLE
+//        imageViewDelete.visibility = View.VISIBLE
         imageViewFlip.visibility = View.VISIBLE
         imageViewDone.visibility = View.VISIBLE
         imageViewScale.visibility = View.VISIBLE
@@ -476,10 +469,10 @@ abstract class StickerView : FrameLayout {
                 layoutParams as LayoutParams
             Log.v(TAG, "params.leftMargin: " + params.leftMargin)
             val border = Rect()
-            border.left = 10
-            border.top = 10
-            border.right = 10
-            border.bottom = 10
+            border.left = this.left - params.leftMargin
+            border.top = this.top - params.topMargin
+            border.right = this.right - params.rightMargin
+            border.bottom = this.bottom - params.bottomMargin
             val borderPaint = Paint()
             borderPaint.strokeWidth = 3F
             borderPaint.color = Color.BLACK
@@ -497,5 +490,12 @@ abstract class StickerView : FrameLayout {
             val px = dp * (metrics.densityDpi / 160f)
             return px.toInt()
         }
+    }
+
+    open fun getBitmapFromView(): Bitmap? {
+        mainView?.isDrawingCacheEnabled = true
+        val bitmap = mainView?.drawingCache?.copy(Bitmap.Config.ARGB_8888, true)
+        mainView?.isDrawingCacheEnabled = false
+        return bitmap
     }
 }

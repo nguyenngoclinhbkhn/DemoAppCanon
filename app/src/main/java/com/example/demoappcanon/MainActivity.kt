@@ -7,6 +7,7 @@ import android.app.Activity
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Color
 import android.graphics.Point
 import android.os.Bundle
 import android.util.Log
@@ -149,7 +150,14 @@ class MainActivity : AppCompatActivity(), View.OnClickListener, DrawView.OnDrawV
                     Log.e("KEY_ADD_TEXT", keyAddText)
                     Log.e("KEY_COLOR_TEXT", keyColorText.toString())
                     keyAddText?.let { stickerText?.setText(it) }
-                    keyColorText?.let { stickerText?.setFontAndColor(this, null, it) }
+                    if (keyColorText == 0) {
+                        stickerText?.setFontAndColor(this, null, R.color.colorBlack)
+                    } else {
+                        keyColorText?.let { stickerText?.setFontAndColor(this, null, it) }
+                    }
+                    stickerText?.post {
+                        stickerText?.isRotationHozizontal
+                    }
                     if (stickerText?.parent != null) {
                         (stickerText?.parent as ViewGroup).removeView(stickerText)
                     }

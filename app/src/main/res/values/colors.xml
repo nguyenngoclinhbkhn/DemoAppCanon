@@ -8,5 +8,7 @@
     <color name="colorYellow">#FFFF00</color>
     <color name="colorSnow">#FFFAFA</color>
     <color name="colorGray">#A6A5A3</color>
+    <color name="colorBlack">#000000</color>
+    <color name="colorTranparent">#00000000</color>
 
 </resources>

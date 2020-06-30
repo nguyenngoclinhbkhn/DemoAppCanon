@@ -36,8 +36,7 @@ class AddTextActivity : AppCompatActivity(), View.OnClickListener {
             }
         })
         val space = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 3f, resources.displayMetrics).toInt()
-        val space2 = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 8f, resources.displayMetrics).toInt()
-        recyColor.addItemDecoration(SpacesItemDecoration(space, space2))
+        recyColor.addItemDecoration(SpacesItemDecoration(space))
         recyColor.layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
         recyColor.adapter = colorAdapter
     }

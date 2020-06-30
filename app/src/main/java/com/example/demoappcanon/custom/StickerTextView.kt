@@ -2,6 +2,7 @@ package com.example.demoappcanon.custom
 
 import android.R
 import android.content.Context
+import android.graphics.Color
 import android.graphics.Typeface
 import android.os.Build
 import android.util.AttributeSet
@@ -30,7 +31,7 @@ class StickerTextView : StickerView {
 
     fun setFontAndColor(context: Context?, font: Typeface?, color: Int) {
         tv_main?.typeface = font
-        context?.resources?.getColor(color)?.let { tv_main?.setTextColor(it) }
+        tv_main?.setTextColor(Color.parseColor(context?.resources?.getString(color)))
     }
 
     //        tv_main.setTypeface(typeFace);

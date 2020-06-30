@@ -192,9 +192,6 @@ abstract class StickerView : FrameLayout {
     val isFlip: Boolean
         get() = mainView?.rotationY === -180f
 
-    val isRotationHozizontal: Boolean
-    get() = mainView?.rotation == 90f
-
     protected abstract val mainView: View?
     private var widthOld = 0
     private var heightOld = 0

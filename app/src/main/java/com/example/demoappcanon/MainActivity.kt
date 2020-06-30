@@ -147,8 +147,10 @@ class MainActivity : AppCompatActivity(), View.OnClickListener, DrawView.OnDrawV
                 if (resultCode == Activity.RESULT_OK) {
                     val keyAddText = data?.getStringExtra("KEY_ADD_TEXT")
                     val keyColorText = data?.getIntExtra("KEY_COLOR_TEXT", -1)
+                    val keyRotation = data?.getBooleanExtra("KEY_ROTATION_TEXT", false)
                     Log.e("KEY_ADD_TEXT", keyAddText)
                     Log.e("KEY_COLOR_TEXT", keyColorText.toString())
+                    Log.e("KEY_ROTATION_TEXT", keyRotation.toString())
                     keyAddText?.let { stickerText?.setText(it) }
                     if (keyColorText == 0) {
                         stickerText?.setFontAndColor(this, null, R.color.colorBlack)
@@ -156,7 +158,7 @@ class MainActivity : AppCompatActivity(), View.OnClickListener, DrawView.OnDrawV
                         keyColorText?.let { stickerText?.setFontAndColor(this, null, it) }
                     }
                     stickerText?.post {
-                        stickerText?.isRotationHozizontal
+                        stickerText?.rotation = if(keyRotation!!) 90f else 0f
                     }
                     if (stickerText?.parent != null) {
                         (stickerText?.parent as ViewGroup).removeView(stickerText)

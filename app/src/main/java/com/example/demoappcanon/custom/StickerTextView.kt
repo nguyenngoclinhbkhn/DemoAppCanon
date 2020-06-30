@@ -42,7 +42,7 @@ class StickerTextView : StickerView {
             tv_main = AutoResizeTextView(context)
             tv_main!!.gravity = Gravity.CENTER
             //        tv_main.setTypeface(typeFace);
-            tv_main!!.setMinTextSize(15F)
+            tv_main!!.setMinTextSize(18F)
             tv_main!!.textSize = 1000F
             tv_main!!.maxLines = 1
             val params = LayoutParams(

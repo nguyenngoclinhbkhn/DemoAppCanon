@@ -140,10 +140,8 @@ class AutoResizeTextView : TextView {
             return
         }
         val startSize = mMinTextSize.toInt()
-        val heightLimit = (measuredHeight - compoundPaddingBottom
-                - compoundPaddingTop)
-        mWidthLimit = (measuredWidth - compoundPaddingLeft
-                - compoundPaddingRight)
+        val heightLimit = (measuredHeight )
+        mWidthLimit = (measuredWidth )
         mAvailableSpaceRect!!.right = mWidthLimit.toFloat()
         mAvailableSpaceRect!!.bottom = heightLimit.toFloat()
         super.setTextSize(

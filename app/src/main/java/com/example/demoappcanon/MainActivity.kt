@@ -10,6 +10,7 @@ import android.content.Intent
 import android.content.SharedPreferences
 import android.graphics.*
 import android.os.Bundle
+import android.os.Environment
 import android.util.Base64
 import android.util.Log
 import android.view.Gravity
@@ -32,10 +33,17 @@ import com.example.demoappcanon.custom.StickerView
 import com.example.demoappcanon.model.StickerModel
 import io.reactivex.Single
 import io.reactivex.android.schedulers.AndroidSchedulers
+import io.reactivex.observers.DisposableObserver
 import io.reactivex.observers.DisposableSingleObserver
 import io.reactivex.schedulers.Schedulers
 import kotlinx.android.synthetic.main.activity_main.*
 import java.io.ByteArrayOutputStream
+import java.io.File
+import java.io.FileInputStream
+import java.io.FileOutputStream
+import kotlin.math.abs
+import kotlin.math.cos
+import kotlin.math.sin
 
 
 class MainActivity : AppCompatActivity(), View.OnClickListener, DrawView.OnDrawViewListener,
@@ -72,6 +80,7 @@ class MainActivity : AppCompatActivity(), View.OnClickListener, DrawView.OnDrawV
         const val BITMAP = "Bitmap"
         const val IS_STICKER_IMAGE = "IS_"
         const val SIZE = "SIZE"
+        const val KEY_PATH = "Path"
 
         fun bitmapToString(bitmap: Bitmap): String? {
             val baos = ByteArrayOutputStream()
@@ -103,17 +112,21 @@ class MainActivity : AppCompatActivity(), View.OnClickListener, DrawView.OnDrawV
         drawView = findViewById(R.id.drawView)
         frameRoot = findViewById(R.id.frameRoot)
         imgPreview = findViewById(R.id.imgPreView)
-//        drawView = DrawView(this)
         drawView.setOnClickListener(this)
-//        imgPreview = ImageView(this)
         drawView.setOnDrawViewListener(this)
         stickerFake = StickerImageView(this)
         stickerFake?.setStickerListener(this)
         frameRoot.addView(stickerFake)
         stickerFake?.visibility = View.GONE
 
-        bitmapOrigin = BitmapFactory.decodeResource(resources, R.drawable.test)
+        disableDrawView()
 
+
+        val options = BitmapFactory.Options()
+//        options.inScaled = false
+//        bitmapOrigin = BitmapFactory.decodeResource(resources, R.drawable.test, options).copy(Bitmap.Config.ARGB_8888, true)
+
+        bitmapOrigin = BitmapFactory.decodeResource(resources, R.drawable.test).copy(Bitmap.Config.ARGB_8888, true)
 
         frameRoot.post {
             val widthFrame = frameRoot.width
@@ -164,6 +177,14 @@ class MainActivity : AppCompatActivity(), View.OnClickListener, DrawView.OnDrawV
         recyclerDraw.layoutManager =
             LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
         recyclerDraw.adapter = adapterButton
+
+        adapterStickerOnImage = AdapterStickerOnImage(this)
+        recyclerSticker.layoutManager =
+            LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
+        recyclerSticker.adapter = adapterStickerOnImage
+        adapterStickerOnImage.setList(listSticker)
+
+
         sticker.setOnClickListener(this)
         save.setOnClickListener(this)
         saveBitmap.setOnClickListener(this)
@@ -205,11 +226,9 @@ class MainActivity : AppCompatActivity(), View.OnClickListener, DrawView.OnDrawV
                 listSticker.add(StickerModel(stickerImageView, isChoose = false, isFake = false))
             }
         }
-        adapterStickerOnImage = AdapterStickerOnImage(this)
-        recyclerSticker.layoutManager =
-            LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
-        recyclerSticker.adapter = adapterStickerOnImage
         adapterStickerOnImage.setList(listSticker)
+
+
     }
 
     override fun onClick(v: View?) {
@@ -259,8 +278,27 @@ class MainActivity : AppCompatActivity(), View.OnClickListener, DrawView.OnDrawV
                     })
             }
             R.id.saveBitmap -> {
-                Log.e("TAG", "x stickerFocus ${stickerFocus.x}")
-                Log.e("TAG", "y stickerFocus ${stickerFocus.y}")
+                showDialog()
+                Single.create<String> {
+                    drawStickerOnBitmapVersion2(bitmapOrigin)
+                    saveBitmap(bitmapOrigin)
+                    it.onSuccess(fileBitmap.absolutePath)
+                }.subscribeOn(Schedulers.io())
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribe(object: DisposableSingleObserver<String>() {
+                        override fun onSuccess(t: String) {
+                            closeDialog()
+                            val intent = Intent(this@MainActivity, BitmapSavedActivity::class.java)
+                            intent.putExtra(KEY_PATH, t)
+                            startActivity(intent)
+//                            finish()
+                        }
+
+                        override fun onError(e: Throwable) {
+                            Log.e("TAG", "Error save ${e.toString()}" )
+                        }
+
+                    })
             }
         }
     }
@@ -424,16 +462,16 @@ class MainActivity : AppCompatActivity(), View.OnClickListener, DrawView.OnDrawV
     override fun onButtonDrawClicked(button: String) {
         when (button) {
             "Draw1" -> {
-
+                drawView.setDraw1()
             }
             "Draw2" -> {
-
+                drawView.setDraw2()
             }
             "Draw3" -> {
-
+                drawView.setDraw3()
             }
             "Draw4" -> {
-
+                drawView.setDraw4()
             }
             "Draw5" -> {
                 drawView.setDraw5()
@@ -490,13 +528,12 @@ class MainActivity : AppCompatActivity(), View.OnClickListener, DrawView.OnDrawV
     }
 
 
-    public fun drawStickerOnBitmapVersion2(bitmap: Bitmap, imgPhotoEdit: ImageView) {
+     private fun drawStickerOnBitmapVersion2(bitmap: Bitmap) {
         val widthBitmap = bitmap.width
         val heightBitmap = bitmap.height
-
         val paint = Paint();
-        val width = (frameRoot.getWidth() - imgPhotoEdit.width) / 2;
-        val height = (frameRoot.getHeight() - imgPhotoEdit.height) / 2;
+        val width = (frameRoot.width - imgPreview.width) / 2;
+        val height = (frameRoot.height - imgPreview.height) / 2;
         val canvas = Canvas(bitmap)
         for (i in 0 until listSticker.size) {
             val matrix = Matrix()
@@ -506,39 +543,49 @@ class MainActivity : AppCompatActivity(), View.OnClickListener, DrawView.OnDrawV
                 Bitmap.createBitmap(bitmap2!!, 0, 0, bitmap2.width, bitmap2.height, matrix, true)
             val resized = Bitmap.createScaledBitmap(
                 bitmap3,
-                bitmap3.width * bitmap.width / imgPreview.width,
-                bitmap3.height * bitmap.height / imgPreview.height, true
+                bitmap3.width * widthBitmap / imgPreview.width,
+                bitmap3.height * heightBitmap / imgPreview.height, true
             )
             bitmap3.recycle()
-            val degree = listSticker[i].stickerView.rotation * Math.PI / 180
-//            val valueY =
+            var degree = listSticker[i].stickerView.rotation * Math.PI / 180
+            if (abs(degree) > Math.PI / 2){
+                degree = Math.PI - abs(degree)
+            }
+            val valueY = listSticker[i].stickerView.width * ((sin(degree) * cos(degree)) /
+                    (sin(degree) + cos(degree) + 1))
+            val valueX = listSticker[i].stickerView.height * ((sin(degree) * cos(degree)) /
+                    (sin(degree) + cos(degree) + 1))
 
 
-//        for (int index = 2; index < (frameLayoutImage).getChildCount(); ++index) {
-//            View nextChild = (frameLayoutImage).getChildAt(index);
-//            if (nextChild instanceof StickerTextView) {
-//            }
-//            final Matrix matrix = new Matrix();
-//            matrix.setRotate(nextChild.getRotation());
-//            Bitmap bitmap2 = BitmapProcess.getBitmapFromView(nextChild);
-//            Bitmap bitmap3 = Bitmap.createBitmap(bitmap2, 0, 0,
-//            bitmap2.getWidth(), bitmap2.getHeight(), matrix, true);
-//            Bitmap resized = Bitmap.createScaledBitmap(bitmap3, bitmap3.getWidth() * bitmap.getWidth() / imgPhotoEdit.getWidth(),
-//            bitmap3.getHeight() * bitmap.getHeight() / imgPhotoEdit.getHeight(), true);
-//            bitmap3.recycle();
-//            double degree = nextChild.getRotation() * Math.PI / 180;
-//            double valueY = nextChild.getHeight() * ((Math.sin(degree) * Math.cos(degree)) /
-//                    (Math.sin(degree) + Math.cos(degree) + 1));
-//            float x = nextChild.getX() - (float) Math.abs(valueY) - width;
-//            float y = nextChild.getY() - (float) Math.abs(valueY) - height;
-//            double coordinateX1 = ((x) * bitmap.getWidth() / (double) (imgPhotoEdit.getWidth()));
-//            double coordinateY1 = (y) * bitmap.getHeight() / (double) (imgPhotoEdit.getHeight());
-//            canvas.drawBitmap(resized, (int) coordinateX1, (int) coordinateY1, paint);
-//            Log.e("TAG", " hello " + nextChild.toString());
-//
-//        }
+            Log.e("TAG", "value Y $valueY")
+            Log.e("TAG", "valueX $valueX")
+
+//            val valueY = 0
+//            val valueX = 0
+            val x = listSticker[i].stickerView.x - abs(valueX) - width
+            val y = listSticker[i].stickerView.y - abs(valueY) - height
+            val coordinateX1 = ((x * widthBitmap)/ imgPreview.width)
+            val coordinateY1 = ((y * heightBitmap) / imgPreview.height)
+            canvas.drawBitmap(resized, coordinateX1.toFloat(), coordinateY1.toFloat(), paint)
+
         }
 
+
+    }
+
+
+    lateinit var fileBitmap: File
+    private fun saveBitmap(bitmap: Bitmap){
+        val fileName = File(Environment.getExternalStorageDirectory(), "Canon")
+        if (!fileName.exists()){
+            fileName.mkdirs()
+        }
+        fileBitmap = File(fileName, "${System.currentTimeMillis()}.jpg")
+        val outputStream = FileOutputStream(fileBitmap)
+        bitmap.compress(Bitmap.CompressFormat.JPEG, 100, outputStream)
+        outputStream.flush()
+        outputStream.close()
+        Log.e("TAG", "Save ok")
 
     }
 

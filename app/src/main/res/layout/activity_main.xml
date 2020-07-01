@@ -14,27 +14,19 @@
         <FrameLayout
             android:layout_width="match_parent"
             android:id="@+id/frameRoot"
-            android:layout_marginTop="-50dp"
-            android:layout_marginLeft="-20dp"
-            android:layout_marginRight="-20dp"
-            android:layout_marginBottom="-50dp"
+
             android:layout_height="match_parent">
 
             <ImageView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:id="@+id/imgPreView"
-                android:layout_gravity="center"
-                android:layout_marginLeft="20dp"
-                android:layout_marginRight="20dp" />
+                android:layout_gravity="center" />
         </FrameLayout>
     </RelativeLayout>
     <com.example.demoappcanon.custom.DrawView
         android:layout_width="match_parent"
-        android:layout_marginTop="-50dp"
-        android:layout_marginLeft="-20dp"
-        android:layout_marginRight="-20dp"
-        android:layout_marginBottom="-50dp"
+
         android:layout_height="match_parent"
         android:id="@+id/drawView" />
 

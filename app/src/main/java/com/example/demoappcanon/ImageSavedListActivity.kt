@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
+import android.graphics.Color
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.view.animation.AnimationUtils
@@ -27,11 +28,14 @@ class ImageSavedListActivity : AppCompatActivity() {
         sharedPreferences = getSharedPreferences(MainActivity.NAME, Context.MODE_PRIVATE)
         var string = sharedPreferences.getString(MainActivity.IMAGE_DEMO, "")
 
-        if (string!!.isNotEmpty()) {
-            imgSave.setImageBitmap(MainActivity.stringToBitmap(string))
-        } else {
-            imgSave.setImageResource(R.drawable.ic_scale)
-        }
+//        if (string!!.isNotEmpty()){
+//            imgSave.setImageBitmap(MainActivity.stringToBitmap(string))
+//        }else{
+//            imgSave.setImageResource(R.drawable.ic_scale)
+//        }
+
+        imgSave.setTextColor(Color.BLUE)
+        imgSave.setStroke(5F, Color.WHITE)
 
         requestPermission(arrayOf(android.Manifest.permission.WRITE_EXTERNAL_STORAGE,
         android.Manifest.permission.READ_EXTERNAL_STORAGE), REQUEST_GALLERY)
@@ -39,6 +43,7 @@ class ImageSavedListActivity : AppCompatActivity() {
             val intent = Intent(this, MainActivity::class.java)
             intent.putExtra(KEY_RESTORE, VALUE_RESTORE)
             startActivity(intent)
+            finish()
         }
 
         goToEdit.setOnClickListener {
